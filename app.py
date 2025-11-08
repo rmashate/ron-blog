@@ -1,16 +1,31 @@
-import os
 from datetime import datetime
-from flask import Flask, render_template, abort, request, jsonify
+from flask import Flask, render_template, abort
 import markdown
 import yaml
-import json
 from pathlib import Path
 import re
+from dateutil import parser as date_parser
+
+
+_POSTS_CACHE = {
+    "signature": None,
+    "posts": None,
+}
 
 app = Flask(__name__, template_folder='app/templates', static_folder='app/static')
 
 class BlogPost:
-    def __init__(self, slug, title, date, content, views=0, featured=False):
+    def __init__(
+        self,
+        slug,
+        title,
+        date,
+        content,
+        views=0,
+        featured=False,
+        description=None,
+        excerpt=None,
+    ):
         self.slug = slug
         self.title = title
         self.date = date
@@ -18,47 +33,122 @@ class BlogPost:
         self.views = views
         self.featured = featured
         self.year = date.year
+        self.description = description or None
+        self.excerpt = excerpt or None
+
+    @property
+    def meta_description(self):
+        return self.description or self.excerpt or ""
 
 def load_posts():
     """Load all blog posts from the content directory"""
-    posts = []
     content_dir = Path('content/posts')
-    
-    if content_dir.exists():
+
+    def _build_signature():
+        signature = []
         for md_file in content_dir.glob('*.md'):
             try:
-                with open(md_file, 'r', encoding='utf-8') as f:
-                    content = f.read()
-                
-                # Parse frontmatter
-                if content.startswith('---'):
-                    parts = content.split('---', 2)
-                    if len(parts) >= 3:
-                        frontmatter = yaml.safe_load(parts[1])
-                        post_content = parts[2].strip()
-                        
-                        # Parse date
-                        date_str = frontmatter.get('date', '2025-01-01')
-                        if isinstance(date_str, str):
-                            date = datetime.strptime(date_str, '%Y-%m-%d')
-                        else:
-                            date = date_str
-                        
-                        post = BlogPost(
-                            slug=frontmatter.get('slug', md_file.stem),
-                            title=frontmatter.get('title', 'Untitled'),
-                            date=date,
-                            content=post_content,
-                            views=frontmatter.get('views', 0),
-                            featured=frontmatter.get('featured', False)
-                        )
-                        posts.append(post)
-            except Exception as e:
-                print(f"Error loading {md_file}: {e}")
-    
+                signature.append((md_file.resolve(), md_file.stat().st_mtime))
+            except OSError:
+                continue
+        return tuple(sorted(signature))
+
+    if not content_dir.exists():
+        return []
+
+    signature = _build_signature()
+    if (
+        signature
+        and signature == _POSTS_CACHE["signature"]
+        and _POSTS_CACHE["posts"] is not None
+    ):
+        return _POSTS_CACHE["posts"]
+
+    posts = []
+
+    for md_file in content_dir.glob('*.md'):
+        try:
+            with open(md_file, 'r', encoding='utf-8') as f:
+                content = f.read()
+
+            # Parse frontmatter
+            if content.startswith('---'):
+                parts = content.split('---', 2)
+                if len(parts) >= 3:
+                    frontmatter = yaml.safe_load(parts[1]) or {}
+                    if not isinstance(frontmatter, dict):
+                        raise ValueError("Front matter must be a mapping")
+
+                    post_content = parts[2].strip()
+
+                    date_value = frontmatter.get('date', '2025-01-01')
+                    date = _parse_post_date(date_value)
+
+                    views = _parse_views(frontmatter.get('views', 0))
+                    description = frontmatter.get('description')
+                    if not isinstance(description, str):
+                        description = None
+
+                    excerpt = _generate_excerpt(post_content)
+
+                    post = BlogPost(
+                        slug=frontmatter.get('slug', md_file.stem),
+                        title=frontmatter.get('title', 'Untitled'),
+                        date=date,
+                        content=post_content,
+                        views=views,
+                        featured=bool(frontmatter.get('featured', False)),
+                        description=description,
+                        excerpt=excerpt,
+                    )
+                    posts.append(post)
+        except Exception as e:
+            print(f"Error loading {md_file}: {e}")
+
     # Sort posts by date (newest first)
     posts.sort(key=lambda x: x.date, reverse=True)
+    _POSTS_CACHE["signature"] = signature
+    _POSTS_CACHE["posts"] = posts
     return posts
+
+
+def _parse_post_date(value):
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, str):
+        try:
+            parsed = date_parser.parse(value)
+            if parsed.tzinfo:
+                parsed = parsed.astimezone(tz=None).replace(tzinfo=None)
+            return parsed
+        except (ValueError, TypeError):
+            pass
+    return datetime(2025, 1, 1)
+
+
+def _parse_views(value):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _generate_excerpt(markdown_text, length=200):
+    if not markdown_text:
+        return None
+
+    html = markdown.markdown(markdown_text)
+    text = re.sub(r'<[^>]+>', ' ', html)
+    text = re.sub(r'\s+', ' ', text).strip()
+
+    if not text:
+        return None
+
+    if len(text) <= length:
+        return text
+
+    truncated = text[:length].rstrip()
+    return f"{truncated}…"
 
 def group_posts_by_year(posts):
     """Group posts by year for display"""
@@ -95,12 +185,6 @@ def post(slug):
     post.views += 1
     
     return render_template('post.html', post=post)
-
-@app.route('/api/views/<slug>', methods=['POST'])
-def increment_views(slug):
-    """API endpoint to increment post views"""
-    # In a real implementation, this would update a database
-    return jsonify({'success': True})
 
 @app.errorhandler(404)
 def not_found(error):
