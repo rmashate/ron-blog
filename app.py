@@ -4,6 +4,7 @@ import markdown
 import yaml
 from pathlib import Path
 import re
+import math
 from dateutil import parser as date_parser
 
 
@@ -35,10 +36,17 @@ class BlogPost:
         self.year = date.year
         self.description = description or None
         self.excerpt = excerpt or None
+        self._word_count = len(re.findall(r"\w+", content))
 
     @property
     def meta_description(self):
         return self.description or self.excerpt or ""
+
+    @property
+    def reading_time_minutes(self):
+        if not self._word_count:
+            return 1
+        return max(1, math.ceil(self._word_count / 225))
 
 def load_posts():
     """Load all blog posts from the content directory"""
