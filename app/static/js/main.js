@@ -26,7 +26,7 @@ function initializeTheme() {
 function subscribeNewsletter() {
     const emailInput = document.getElementById('newsletter-email');
     const email = emailInput.value.trim();
-    
+
     if (!email) {
         alert('Please enter your email address.');
         return;
@@ -36,10 +36,11 @@ function subscribeNewsletter() {
         alert('Please enter a valid email address.');
         return;
     }
-    
+
     // In a real implementation, this would send to your newsletter service
     alert('Thanks for subscribing! (This is a demo - implement with ConvertKit, Mailchimp, etc.)');
     emailInput.value = '';
+    trackNewsletterSignup();
 }
 
 // Email validation
@@ -104,6 +105,9 @@ function copyToClipboard(text) {
     if (navigator.clipboard) {
         navigator.clipboard.writeText(text).then(() => {
             showToast('Link copied to clipboard!');
+        }).catch((error) => {
+            console.error('Clipboard copy failed', error);
+            showToast('Unable to copy link. Please try again.', 4000);
         });
     } else {
         // Fallback for older browsers
@@ -111,9 +115,19 @@ function copyToClipboard(text) {
         textArea.value = text;
         document.body.appendChild(textArea);
         textArea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textArea);
-        showToast('Link copied to clipboard!');
+
+        try {
+            const successful = document.execCommand('copy');
+            if (!successful) {
+                throw new Error('Copy command unsuccessful');
+            }
+            showToast('Link copied to clipboard!');
+        } catch (error) {
+            console.error('Fallback clipboard copy failed', error);
+            showToast('Unable to copy link. Please copy manually.', 4000);
+        } finally {
+            document.body.removeChild(textArea);
+        }
     }
 }
 
@@ -171,18 +185,53 @@ function initializeSearch() {
 
 // Performance monitoring
 function initializePerformanceMonitoring() {
-    if ('performance' in window) {
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                const perfData = performance.getEntriesByType('navigation')[0];
-                trackEvent('page_performance', {
-                    loadTime: perfData.loadEventEnd - perfData.loadEventStart,
-                    domContentLoaded: perfData.domContentLoadedEventEnd - perfData.domContentLoadedEventStart,
-                    firstPaint: performance.getEntriesByType('paint')[0]?.startTime || 0
-                });
-            }, 0);
-        });
+    if (!('performance' in window)) {
+        return;
     }
+
+    window.addEventListener('load', () => {
+        setTimeout(() => {
+            if (typeof performance.getEntriesByType !== 'function' && !performance.timing) {
+                return;
+            }
+
+            const navigationEntries = typeof performance.getEntriesByType === 'function'
+                ? performance.getEntriesByType('navigation')
+                : [];
+            const navigationEntry = navigationEntries && navigationEntries[0];
+            const timing = performance.timing;
+
+            if (!navigationEntry && !timing) {
+                return;
+            }
+
+            const metrics = {};
+
+            if (navigationEntry) {
+                metrics.loadTime = navigationEntry.loadEventEnd - navigationEntry.loadEventStart;
+                metrics.domContentLoaded = navigationEntry.domContentLoadedEventEnd - navigationEntry.domContentLoadedEventStart;
+            } else if (timing) {
+                metrics.loadTime = timing.loadEventEnd - timing.loadEventStart;
+                metrics.domContentLoaded = timing.domContentLoadedEventEnd - timing.domContentLoadedEventStart;
+            }
+
+            let firstPaint = 0;
+            if (typeof performance.getEntriesByType === 'function') {
+                const paintEntries = performance.getEntriesByType('paint');
+                if (paintEntries && paintEntries.length) {
+                    firstPaint = paintEntries[0].startTime;
+                }
+            }
+
+            if (!firstPaint && timing) {
+                firstPaint = timing.responseStart - timing.navigationStart;
+            }
+
+            metrics.firstPaint = firstPaint;
+
+            trackEvent('page_performance', metrics);
+        }, 0);
+    });
 }
 
 // Initialize everything when DOM is loaded
