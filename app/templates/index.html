@@ -1,52 +1,23 @@
 {% extends "base.html" %}
 
 {% block content %}
-<!-- Post List (Rauch-style minimalist) -->
-<section class="mb-16">
-    <div class="space-y-0">
-        <!-- Header Row -->
-        <div class="flex justify-between items-center py-2 text-xs text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700 mb-4">
-            <div class="w-12">date</div>
-            <div class="flex-1">title</div>
-            <div class="w-16 text-right">views</div>
-        </div>
-
-        {% for year, posts in grouped_posts.items() %}
-            {% for post in posts %}
-                <div class="post-link flex justify-between items-center py-1.5 hover:bg-gray-50 dark:hover:bg-gray-800 -mx-2 px-2 rounded transition-colors cursor-pointer group" onclick="window.location.href='{{ url_for('post', slug=post.slug) }}'">
-                    <div class="w-12 text-xs text-gray-500 dark:text-gray-400">
-                        {% if loop.first %}{{ year }}{% endif %}
-                    </div>
-                    <div class="flex-1 mr-4">
-                        <h3 class="post-title text-sm font-normal text-black dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{{ post.title }}</h3>
-                    </div>
-                    <div class="w-16 text-right text-xs text-gray-500 dark:text-gray-400 tabular-nums">
-                        {{ "{:,}".format(post.views) }}
-                    </div>
-                </div>
-            {% endfor %}
+<!-- Rauch-inspired index list -->
+<section class="space-y-3 sm:space-y-4">
+    {% for year, posts in grouped_posts.items() %}
+        {% set year_index = loop.index0 %}
+        {% for post in posts %}
+            <article class="post-link group grid grid-cols-[3.5rem_1fr_auto] sm:grid-cols-[4rem_1fr_auto] items-baseline gap-4 text-sm sm:text-base {{ 'pt-6 sm:pt-8' if loop.first and year_index > 0 else '' }}">
+                <span class="text-[13px] sm:text-sm text-gray-400 dark:text-gray-500 tabular-nums">
+                    {% if loop.first %}{{ year }}{% endif %}
+                </span>
+                <a href="{{ url_for('post', slug=post.slug) }}" class="post-title text-[15px] sm:text-base font-normal text-black dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                    {{ post.title }}
+                </a>
+                <span class="text-[13px] sm:text-sm text-gray-400 dark:text-gray-500 tabular-nums">
+                    {{ "{:,}".format(post.views) }}
+                </span>
+            </article>
         {% endfor %}
-    </div>
-</section>
-
-<!-- Simple Newsletter Section -->
-<section class="mb-8 py-8 border-t border-gray-200 dark:border-gray-700">
-    <div class="text-center">
-        <h3 class="text-sm font-medium mb-2">Subscribe</h3>
-        <p class="text-xs text-gray-600 dark:text-gray-400 mb-4 max-w-sm mx-auto">
-            Get notified when I publish new articles about product strategy and AI systems.
-        </p>
-        <div class="flex flex-col sm:flex-row gap-2 max-w-sm mx-auto">
-            <input 
-                type="email" 
-                id="newsletter-email"
-                placeholder="your@email.com" 
-                class="flex-1 px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded focus:outline-none focus:ring-1 focus:ring-gray-400 dark:bg-gray-800 dark:text-white"
-            >
-            <button onclick="subscribeNewsletter()" class="px-4 py-2 text-sm bg-black dark:bg-white text-white dark:text-black rounded hover:opacity-80 transition-opacity">
-                Subscribe
-            </button>
-        </div>
-    </div>
+    {% endfor %}
 </section>
 {% endblock %}
