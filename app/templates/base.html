@@ -43,27 +43,24 @@
 </head>
 <body class="bg-white dark:bg-gray-900 text-black dark:text-white font-sans">
     <!-- Navigation -->
-    <nav class="max-w-2xl mx-auto px-6 py-6 flex justify-between items-center">
-        <h1 class="text-base font-medium">
-            <a href="{{ url_for('index') }}" class="hover:text-gray-600 dark:hover:text-gray-400 transition-colors">Ron Mashate</a>
-        </h1>
-        
+    <nav class="max-w-3xl mx-auto px-6 sm:px-8 py-8 flex justify-between items-center text-sm text-gray-600 dark:text-gray-400">
+        <a href="{{ url_for('index') }}" class="text-base sm:text-lg font-medium tracking-tight text-black dark:text-white hover:text-gray-600 dark:hover:text-gray-300 transition-colors">Ron Mashate</a>
+
         <div class="flex items-center space-x-6">
-            <a href="{{ url_for('about') }}" class="text-sm text-black dark:text-white hover:text-gray-600 dark:hover:text-gray-400 transition-colors">About</a>
-            <a href="https://linkedin.com/in/rmashate" target="_blank" class="text-sm text-black dark:text-white hover:text-gray-600 dark:hover:text-gray-400 transition-colors">LinkedIn</a>
-            <button onclick="toggleTheme()" class="theme-toggle text-lg hover:opacity-70 transition-opacity">
-                <span class="dark:hidden">🌙</span>
-                <span class="hidden dark:inline">☀️</span>
-            </button>
+            <a href="{{ url_for('about') }}" class="hover:text-black dark:hover:text-white transition-colors">About</a>
+            <a href="https://x.com/rmashate" target="_blank" rel="noopener" class="inline-flex items-center gap-1 hover:text-black dark:hover:text-white transition-colors">
+                <span>X</span>
+                <span>Follow me</span>
+            </a>
         </div>
     </nav>
 
-    <main class="max-w-3xl md:max-w-4xl mx-auto px-6">
+    <main class="max-w-3xl mx-auto px-6 sm:px-8">
         {% block content %}{% endblock %}
     </main>
 
     <!-- Footer -->
-    <footer class="max-w-2xl mx-auto px-6 py-8 text-center text-xs text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700 mt-16">
+    <footer class="max-w-3xl mx-auto px-6 sm:px-8 py-8 text-center text-xs text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700 mt-16">
         <p>&copy; 2025 Ron Mashate. All rights reserved.</p>
     </footer>
 
